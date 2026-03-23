@@ -1,10 +1,11 @@
 const express = require("express");
-const { authenticate } = require("../middleware/auth");
+const { authenticate, loadUser } = require("../middleware/auth");
 const User = require("../models/User");
+const { normalizeNotifPrefs, buildNotifPrefsSetUpdate } = require("../utils/notifPrefs");
 
 const router = express.Router();
 
-router.get("/:id/profile", authenticate, async (req, res) => {
+router.get("/:id/profile", authenticate, async (req, res, next) => {
   try {
     const user = await User.findById(req.params.id)
       .select("name email bio avatarUrl createdAt")
@@ -29,8 +30,39 @@ router.get("/:id/profile", authenticate, async (req, res) => {
         createdAt: user.createdAt
       }
     });
-  } catch (_err) {
-    return res.status(404).json({ success: false, message: "User not found" });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.get("/me/notification-prefs", authenticate, loadUser, async (req, res, next) => {
+  try {
+    const prefs = normalizeNotifPrefs(req.user.notifPrefs);
+    return res.json({
+      success: true,
+      data: { prefs }
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.patch("/me/notification-prefs", authenticate, loadUser, async (req, res, next) => {
+  try {
+    const { setFields, hasValidUpdates } = buildNotifPrefsSetUpdate(req.body);
+
+    let updatedUser = req.user;
+    if (hasValidUpdates) {
+      updatedUser = await User.findByIdAndUpdate(req.user._id, { $set: setFields }, { new: true });
+    }
+
+    const prefs = normalizeNotifPrefs(updatedUser && updatedUser.notifPrefs);
+    return res.json({
+      success: true,
+      data: { prefs }
+    });
+  } catch (err) {
+    return next(err);
   }
 });
 
