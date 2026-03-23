@@ -1,3 +1,5 @@
+const User = require("../models/User");
+
 function authenticate(req, res, next) {
   const authHeader = req.headers.authorization || "";
 
@@ -10,8 +12,22 @@ function authenticate(req, res, next) {
     return res.status(401).json({ success: false, message: "Unauthorised" });
   }
 
-  req.user = { token };
+  req.user = { token, _id: token };
   return next();
 }
 
-module.exports = { authenticate };
+async function loadUser(req, res, next) {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(401).json({ success: false, message: "Unauthorised" });
+    }
+
+    req.user = user;
+    return next();
+  } catch (_err) {
+    return res.status(401).json({ success: false, message: "Unauthorised" });
+  }
+}
+
+module.exports = { authenticate, loadUser };
