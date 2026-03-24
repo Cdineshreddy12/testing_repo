@@ -90,6 +90,23 @@ describe("Notification preferences API", () => {
     );
     expect(res.body.data.prefs.task_done).toEqual({ inApp: false, email: false });
   });
+
+  it("PATCH with malformed payload is a no-op and returns current prefs", async () => {
+    // Arrange
+    const defaults = getDefaultNotifPrefs();
+    User.findById.mockResolvedValue({ _id: "user-1", notifPrefs: defaults });
+
+    // Act
+    const res = await request(app)
+      .patch("/api/users/me/notification-prefs")
+      .set("Authorization", "Bearer user-1")
+      .send([]);
+
+    // Assert
+    expect(res.status).toBe(200);
+    expect(User.findByIdAndUpdate).not.toHaveBeenCalled();
+    expect(res.body.data.prefs).toEqual(defaults);
+  });
 });
 
 describe("sendNotification", () => {
@@ -112,5 +129,30 @@ describe("sendNotification", () => {
     // Assert
     expect(createInAppNotification).not.toHaveBeenCalled();
     expect(result).toEqual({ deliveredInApp: false, reason: "inApp_disabled" });
+  });
+
+  it("delivers email when enabled even if inApp is disabled", () => {
+    // Arrange
+    const createInAppNotification = jest.fn();
+    const sendEmail = jest.fn();
+    const user = {
+      notifPrefs: {
+        task_review: { inApp: false, email: true }
+      }
+    };
+
+    // Act
+    const result = sendNotification({
+      user,
+      type: "task_review",
+      createInAppNotification,
+      sendEmail,
+      emailPayload: { subject: "Review requested" }
+    });
+
+    // Assert
+    expect(createInAppNotification).not.toHaveBeenCalled();
+    expect(sendEmail).toHaveBeenCalledWith({ subject: "Review requested" });
+    expect(result).toEqual({ deliveredInApp: false, deliveredEmail: true });
   });
 });
