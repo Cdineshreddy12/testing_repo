@@ -36,6 +36,47 @@ router.get("/:id/profile", authenticate, validateObjectId("id"), async (req, res
   }
 });
 
+router.patch("/:id/bio", authenticate, validateObjectId("id"), async (req, res, next) => {
+  try {
+    const isSelfUpdate = String(req.user && req.user._id) === String(req.params.id);
+    if (!isSelfUpdate) {
+      return res.status(403).json({ success: false, message: "Forbidden" });
+    }
+
+    const rawBio = req.body && req.body.bio;
+    if (typeof rawBio !== "string") {
+      return res.status(400).json({ success: false, message: "Bio must be a string" });
+    }
+
+    const bio = rawBio.trim();
+    if (bio.length > 500) {
+      return res.status(400).json({ success: false, message: "Bio must be 500 characters or fewer" });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.id,
+      { $set: { bio } },
+      { new: true }
+    )
+      .select("_id bio")
+      .lean();
+
+    if (!updatedUser) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        id: String(updatedUser._id),
+        bio: updatedUser.bio
+      }
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
+
 router.get("/me/notification-prefs", authenticate, loadUser, async (req, res, next) => {
   try {
     const prefs = normalizeNotifPrefs(req.user.notifPrefs);

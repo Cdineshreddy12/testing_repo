@@ -4,7 +4,7 @@ const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     email: { type: String, required: true },
-    bio: { type: String, default: "" },
+    bio: { type: String, default: "", maxlength: 500 },
     avatarUrl: { type: String, default: "" },
     notifPrefs: {
       task_assigned: {

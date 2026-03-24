@@ -58,3 +58,78 @@ describe("GET /api/users/:id/profile", () => {
     expect(res.body).toEqual({ success: false, message: "Unauthorised" });
   });
 });
+
+describe("PATCH /api/users/:id/bio", () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("returns 200 and updates bio for same authenticated user", async () => {
+    const updatedUser = { _id: "507f191e810c19729de860ea", bio: "Hello world" };
+    const lean = jest.fn().mockResolvedValue(updatedUser);
+    const select = jest.fn().mockReturnValue({ lean });
+    User.findByIdAndUpdate.mockReturnValue({ select });
+
+    const res = await request(app)
+      .patch("/api/users/507f191e810c19729de860ea/bio")
+      .set("Authorization", "Bearer 507f191e810c19729de860ea")
+      .send({ bio: "  Hello world  " });
+
+    expect(res.status).toBe(200);
+    expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
+      "507f191e810c19729de860ea",
+      { $set: { bio: "Hello world" } },
+      { new: true }
+    );
+    expect(res.body).toEqual({
+      success: true,
+      data: { id: "507f191e810c19729de860ea", bio: "Hello world" }
+    });
+  });
+
+  it("returns 401 when no auth token is provided", async () => {
+    const res = await request(app)
+      .patch("/api/users/507f191e810c19729de860ea/bio")
+      .send({ bio: "hello" });
+
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ success: false, message: "Unauthorised" });
+  });
+
+  it("returns 403 when token user updates another user bio", async () => {
+    const res = await request(app)
+      .patch("/api/users/507f191e810c19729de860eb/bio")
+      .set("Authorization", "Bearer 507f191e810c19729de860ea")
+      .send({ bio: "hello" });
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ success: false, message: "Forbidden" });
+  });
+
+  it("returns 404 when user is not found", async () => {
+    const lean = jest.fn().mockResolvedValue(null);
+    const select = jest.fn().mockReturnValue({ lean });
+    User.findByIdAndUpdate.mockReturnValue({ select });
+
+    const res = await request(app)
+      .patch("/api/users/507f191e810c19729de860ea/bio")
+      .set("Authorization", "Bearer 507f191e810c19729de860ea")
+      .send({ bio: "hello" });
+
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ success: false, message: "User not found" });
+  });
+
+  it("returns 400 when bio exceeds 500 chars", async () => {
+    const res = await request(app)
+      .patch("/api/users/507f191e810c19729de860ea/bio")
+      .set("Authorization", "Bearer 507f191e810c19729de860ea")
+      .send({ bio: "a".repeat(501) });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({
+      success: false,
+      message: "Bio must be 500 characters or fewer"
+    });
+  });
+});
