@@ -1,11 +1,12 @@
 const express = require("express");
 const { authenticate, loadUser } = require("../middleware/auth");
+const { validateObjectId, validateBody } = require("../middleware/validate");
 const User = require("../models/User");
 const { normalizeNotifPrefs, buildNotifPrefsSetUpdate } = require("../utils/notifPrefs");
 
 const router = express.Router();
 
-router.get("/:id/profile", authenticate, async (req, res, next) => {
+router.get("/:id/profile", authenticate, validateObjectId("id"), async (req, res, next) => {
   try {
     const user = await User.findById(req.params.id)
       .select("name email bio avatarUrl createdAt")
@@ -47,7 +48,7 @@ router.get("/me/notification-prefs", authenticate, loadUser, async (req, res, ne
   }
 });
 
-router.patch("/me/notification-prefs", authenticate, loadUser, async (req, res, next) => {
+router.patch("/me/notification-prefs", authenticate, loadUser, validateBody(), async (req, res, next) => {
   try {
     const { setFields, hasValidUpdates } = buildNotifPrefsSetUpdate(req.body);
 
