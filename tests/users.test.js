@@ -57,4 +57,23 @@ describe("GET /api/users/:id/profile", () => {
     expect(res.status).toBe(401);
     expect(res.body).toEqual({ success: false, message: "Unauthorised" });
   });
+
+  it("returns 403 when objectId-like token requests another profile", async () => {
+    const objectIdLikeToken = "507f191e810c19729de860ea";
+    const res = await request(app)
+      .get("/api/users/507f191e810c19729de860eb/profile")
+      .set("Authorization", `Bearer ${objectIdLikeToken}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ success: false, message: "Forbidden" });
+  });
+
+  it("returns 401 when bearer token contains control characters", async () => {
+    const res = await request(app)
+      .get("/api/users/abc123/profile")
+      .set("Authorization", "Bearer bad\ttoken");
+
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ success: false, message: "Unauthorised" });
+  });
 });

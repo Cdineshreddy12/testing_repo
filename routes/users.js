@@ -7,6 +7,11 @@ const router = express.Router();
 
 router.get("/:id/profile", authenticate, async (req, res, next) => {
   try {
+    // When token format is a user id, treat profile access as self-only.
+    if (req.auth && req.auth.isUserIdToken && String(req.user._id) !== String(req.params.id)) {
+      return res.status(403).json({ success: false, message: "Forbidden" });
+    }
+
     const user = await User.findById(req.params.id)
       .select("name email bio avatarUrl createdAt")
       .lean();
